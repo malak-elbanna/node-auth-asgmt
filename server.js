@@ -1,6 +1,6 @@
 const express = require('express');
-const { hashPassword, verifyPassword } = require('./password-utils');
-const { signJWT, verifyJWT } = require('./jwt-utils');
+const { hashPassword, verifyPassword } = require('./utils/password-utils');
+const { signJWT, verifyJWT } = require('./utils/jwt-utils');
 
 const app = express();
 app.use(express.json());
@@ -22,8 +22,10 @@ function authenticate(req, res, next) {
   if (!token) return res.status(401).json({ message: 'Token required' });
 
   try {
-    // TODO: Verify JWT
+    const decoded = verifyJWT(token, JWT_SECRET);
+    req.user = decoded;
 
+    res.status(200).json({ message: 'Token verified' });
     next();
   } catch {
     res.status(403).json({ message: 'Invalid token' });
@@ -48,7 +50,7 @@ app.post('/register', async (req, res) => {
   if (existingUser)
     return res.status(409).json({ message: 'User already exists' });
 
-  // TODO: Hash password
+  const hashedPassword = await hashPassword(password);
 
   users.push({ username, password: hashedPassword, role });
 
@@ -59,9 +61,11 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const user = users.find((u) => u.username === username);
 
-  // TODO: Verify password
+  const verify = await verifyPassword(password, user?.password);
+  if (!verify)
+    return res.status(401).json({ message: 'wrong pass' });
 
-  // TODO: Sign JWT
+  const token = await signJWT(user.id, JWT_SECRET, 3600);
 
   res.json({ token });
 });
